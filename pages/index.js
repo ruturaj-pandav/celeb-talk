@@ -1,118 +1,225 @@
 import Image from 'next/image'
 import { Inter } from 'next/font/google'
+import { useEffect, useState } from 'react'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export default function Home() {
+  const [celeb, setCeleb] = useState("")
+  const [celebInfo, setCelebInfo] = useState([])
+  const [showTable, setShowTable] = useState(false)
+  const [chat, setChat] = useState(false)
+
+  const [question, setQuestion] = useState("")
+  const [image, setImage] = useState(null)
+  const [messages, setMessages] = useState([])
+
+  function handleImageChange(e) {
+    setImage(e.target.files[0])
+  }
+
+
+  async function find() {
+    console.log("finding1")
+    let formData = new FormData()
+    console.log(image)
+    formData.append('celebrity', image)
+    formData.append('test', "test")
+    console.log("finding2")
+    const response = await fetch('http://localhost:8000/find', {
+      method: 'POST',
+      body: formData,
+
+    })
+    console.log("finding3"), response
+    const data = await response.json()
+    console.log("finding 4 : ", data)
+
+    setCeleb(data.name)
+    // 
+
+  }
+
+  useEffect(() => {
+    getCelebInformation();
+  }, [celeb])
+  // async function recognize() {
+  //   const response = await fetch('http://localhost:8000/celeb')
+  // }
+  async function getCelebInformation() {
+
+    if (celeb === "") {
+      return
+    }
+    else {
+      console.log("getting celeb information:  ", celeb)
+      const response = await fetch(`https://api.api-ninjas.com/v1/celebrity?name=${celeb}`, { headers: { "X-Api-Key": "WNHYvgHsXaGs2wmIwstXAQ==AcsG5m2CV3p9cfB4" } })
+      const data = await response.json()
+      console.log("celeb dat : ", data)
+      if (data.length > 0) {
+        let celebrityInformation = {}
+        celebrityInformation.name = data[0].name
+        celebrityInformation.age = data[0].age
+        celebrityInformation.gender = data[0].gender
+        celebrityInformation.birthday = data[0].birthday
+        celebrityInformation.height = data[0].height
+        celebrityInformation.nationality = data[0].nationality
+        celebrityInformation.occupation = data[0].occupation
+        setCelebInfo(celebrityInformation)
+        setShowTable(true)
+      }
+      else {
+        setShowTable(false)
+      }
+    }
+  }
+
+
+
+  async function Conversation() {
+    console.log("conv1")
+
+    let prompt = `You are ${celeb}. Use all the information that you have  and provide accurate information. Question : ${question}`
+
+    console.log("conv2", prompt)
+
+  
+    setMessages( message => [...message, {
+      "speaker": "user",
+      "content": question
+      
+    }]);
+    let bodyData = { prompt };
+    console.log("conv3")
+    const response = await fetch('http://localhost:8000/ask', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(bodyData),
+    })
+    console.log("conv4 : ", response)
+    const data = await response.json()
+    console.log("conv5 : ", data)
+
+
+   
+    
+
+    setMessages( message => [...message, {
+      "speaker": "bot",
+      "content": data.answer
+      
+    }]);
+  }
+  async function firstMessage() {
+    console.log("fm1")
+
+    let prompt = `You are ${celeb}.Greet the user.  `
+    console.log("fm2")
+    let bodyData = { prompt };
+    const response = await fetch('http://localhost:8000/ask', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(bodyData),
+    })
+    console.log("fm3 : ", response)
+    const data = await response.json()
+    console.log("data : ", data)
+
+    setMessages( message => [...message, {
+      "speaker": "bot",
+      "content": data.answer
+      
+    }]);
+
+  }
+
+
+  useEffect(() => {
+    if (chat === true && messages.length == 0) {
+      firstMessage();
+    }
+  }, [chat])
+
+
+  useEffect(() => {
+    getCelebInformation()
+  }, [])
   return (
     <main
-      className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
+      className={`flex min-h-screen flex-col items-center py-32 container mx-auto ${inter.className}`}
     >
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">pages/index.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+      <div className="grid grid-cols-2 ">
+        <div>
+          <input name="celebrity" type="file" className="" onChange={handleImageChange} />
+          <button onClick={() => { find() }}>Find Celebrity</button>
+        </div>
+        <div>
+
+          {showTable && <> <table class="table-auto border ">
+            <thead>
+              <tr>
+                <th class="border">Attribute</th>
+                <th class="border">Information</th>
+
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="border">Name</td>
+                <td class="border">{celebInfo.name}</td>
+              </tr>
+              <tr>
+                <td class="border">Gender</td>
+                <td class="border">{celebInfo.gender}</td>
+              </tr>
+              <tr>
+                <td class="border">Nationality</td>
+                <td class="border">{celebInfo.nationality}</td>
+              </tr>
+              <tr>
+                <td class="border">Occupation</td>
+                <td class="border">{celebInfo.occupation.map((work, index) => {
+                  return (
+                    <span className="mr-2 inline-block">{work}</span>
+                  )
+                })}</td>
+              </tr>
+
+              <tr>
+                <td class="border">Birthday</td>
+                <td class="border">{celebInfo.birthday}</td>
+              </tr>
+
+            </tbody>
+          </table>
+            <br /><span onClick={() => {
+              setChat(true)
+            }}>Chat with {celeb} now</span> </>}
+
         </div>
       </div>
+      {true && <div className="border border-gray-700 rounded-[3px] w-full h-[100vh] overflow-y-scroll border  flex flex-col justify-between ">
+        
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700/10 after:dark:from-sky-900 after:dark:via-[#0141ff]/40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+        <div>
+          {messages.map((message, index) => {
+            return <div className={`${message.speaker === 'bot' ? 'bg-green-300' : "bg-red-300"}`}>
+              {message.content}
+            </div>
+          })}
+        </div>
 
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Discover and deploy boilerplate example Next.js&nbsp;projects.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
+       <div>
+       < input type="text" className="w-full bg-transparent border border-gray-500 rounded-[3px] py-[10px] px-[2px] text-[14px] " onChange={(e) => { setQuestion(e.target.value) }} />
+        <button className=" bg-white text-black rounded-[2px] hover:bg-gray-200 duration-100" onClick={() => {
+          Conversation();
+        }} >Ask Question</button>
+       </div>
+      </div>}
     </main>
   )
 }
